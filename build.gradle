@@ -81,8 +81,8 @@ dependencies {
     // 포트원 연동
     implementation 'com.github.iamport:iamport-rest-client-java:0.2.21'
 
-    // spring cloud
-    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+    // Firebase
+    implementation 'com.google.firebase:firebase-admin:9.2.0'
 
     // rabbitMQ 연결
     implementation 'org.springframework.boot:spring-boot-starter-amqp'
@@ -90,11 +90,14 @@ dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-reactor-netty'
 
-    // 일라스틱 서치
+    // Elasticsearch
     implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
 
     // Logstash
     implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
+
+    // spring cloud
+    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
 }
 
 tasks.named('test') {

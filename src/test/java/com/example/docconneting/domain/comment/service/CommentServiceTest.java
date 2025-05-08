@@ -2,14 +2,14 @@ package com.example.docconneting.domain.comment.service;
 
 import com.example.docconneting.common.enums.Major;
 import com.example.docconneting.common.exception.constant.ErrorCode;
-import com.example.docconneting.common.exception.object.ServerException;
-import com.example.docconneting.domain.alarm.service.AlarmSenderService;
-import com.example.docconneting.domain.comment.dto.request.CommentRequest;
-import com.example.docconneting.domain.comment.dto.response.CommentResponse;
 import com.example.docconneting.common.exception.object.ClientException;
+import com.example.docconneting.common.exception.object.ServerException;
 import com.example.docconneting.common.response.PageInfo;
 import com.example.docconneting.common.response.PageResult;
+import com.example.docconneting.domain.alarm.service.AlarmService;
+import com.example.docconneting.domain.comment.dto.request.CommentRequest;
 import com.example.docconneting.domain.comment.dto.response.CommentListResponse;
+import com.example.docconneting.domain.comment.dto.response.CommentResponse;
 import com.example.docconneting.domain.comment.entity.Comment;
 import com.example.docconneting.domain.comment.repository.CommentRepository;
 import com.example.docconneting.domain.post.entity.Post;
@@ -41,8 +41,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
-import static org.mockito.Mockito.when;
-
 @ActiveProfiles("test")
 @TestClassOrder(ClassOrderer.OrderAnnotation.class)
 @ExtendWith(MockitoExtension.class)
@@ -61,7 +59,7 @@ class CommentServiceTest {
     private EntityManager entityManager;
 
     @Mock
-    AlarmSenderService alarmSenderService;
+    AlarmService alarmService;
 
     @InjectMocks
     private CommentService commentService;

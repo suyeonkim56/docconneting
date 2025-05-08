@@ -3,7 +3,7 @@ package com.example.docconneting.domain.payment.service;
 import com.example.docconneting.common.config.TestAsyncConfig;
 import com.example.docconneting.common.exception.constant.ErrorCode;
 import com.example.docconneting.common.exception.object.ClientException;
-import com.example.docconneting.domain.alarm.service.AlarmSenderService;
+import com.example.docconneting.domain.alarm.service.AlarmService;
 import com.example.docconneting.domain.auth.entity.AuthUser;
 import com.example.docconneting.domain.order.dto.request.OrderRequest;
 import com.example.docconneting.domain.order.enums.OrderProduct;
@@ -47,7 +47,7 @@ public class VerifyAndCreateOrderDistributedLockTest {
     private PortOneService portOneService;
 
     @MockitoBean
-    private AlarmSenderService alarmSenderService;
+    private AlarmService alarmService;
 
     @Autowired
     private OrderRepository orderRepository;

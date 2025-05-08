@@ -3,7 +3,7 @@ package com.example.docconneting.domain.payment.service;
 import com.example.docconneting.common.config.annotation.DistributedLock;
 import com.example.docconneting.common.exception.constant.ErrorCode;
 import com.example.docconneting.common.exception.object.ClientException;
-import com.example.docconneting.domain.alarm.service.AlarmSenderService;
+import com.example.docconneting.domain.alarm.service.AlarmService;
 import com.example.docconneting.domain.auth.entity.AuthUser;
 import com.example.docconneting.domain.chatting.dto.response.ChattingRoomCreateResponse;
 import com.example.docconneting.domain.chatting.service.ChattingRoomService;
@@ -39,7 +39,7 @@ public class PaymentApplicationService {
     private final PortOneService portOneService;
     private final OrderService orderService;
     private final ChattingRoomService chattingRoomService;
-    private final AlarmSenderService alarmSenderService;
+    private final AlarmService alarmService;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final ChattingRoomAsyncService chattingRoomAsyncService;
@@ -96,7 +96,7 @@ public class PaymentApplicationService {
                 // 채팅 생성이 완료되면 의사에게 알람 전송
                 User patient = userRepository.findById(authUser.getId()).orElseThrow(() -> new ClientException(ErrorCode.USER_NOT_FOUND));
                 User doctor = userRepository.findById(order.getDoctorId()).orElseThrow(() -> new ClientException(ErrorCode.DOCTOR_NOT_FOUND));
-                alarmSenderService.sendMedicalRequestMessage(patient, doctor);
+                alarmService.sendMedicalRequestMessage(patient, doctor);
                 log.info("채팅 주문으로 채팅방 비동기 생성 시도 | doctorId={}", order.getDoctorId());
                 chattingRoomAsyncService.createChattingRoom(order);
             }

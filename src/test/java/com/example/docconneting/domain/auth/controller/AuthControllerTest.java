@@ -4,7 +4,7 @@ package com.example.docconneting.domain.auth.controller;
 import com.example.docconneting.common.config.JwtUtil;
 import com.example.docconneting.common.filter.JwtFilter;
 import com.example.docconneting.common.resolver.AuthUserArgumentResolver;
-import com.example.docconneting.domain.alarm.service.AlarmSenderService;
+import com.example.docconneting.domain.alarm.service.AlarmService;
 import com.example.docconneting.domain.auth.dto.request.UserRefreshTokenRequest;
 import com.example.docconneting.domain.auth.dto.request.UserSignInRequest;
 import com.example.docconneting.domain.auth.dto.request.UserSignUpRequest;
@@ -36,7 +36,8 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.refEq;
 import static org.mockito.BDDMockito.given;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ActiveProfiles("test")
@@ -60,7 +61,7 @@ public class AuthControllerTest {
     private AuthService authService;
 
     @MockitoBean
-    private AlarmSenderService alarmSenderService;
+    private AlarmService alarmService;
 
     @MockitoBean
     private UserRepository userRepository;

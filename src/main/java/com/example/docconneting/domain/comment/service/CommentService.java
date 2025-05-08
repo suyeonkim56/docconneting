@@ -1,14 +1,14 @@
 package com.example.docconneting.domain.comment.service;
 
 import com.example.docconneting.common.exception.constant.ErrorCode;
-import com.example.docconneting.common.exception.object.ServerException;
-import com.example.docconneting.domain.alarm.service.AlarmSenderService;
-import com.example.docconneting.domain.comment.dto.request.CommentRequest;
-import com.example.docconneting.domain.comment.dto.response.CommentResponse;
 import com.example.docconneting.common.exception.object.ClientException;
+import com.example.docconneting.common.exception.object.ServerException;
 import com.example.docconneting.common.response.PageInfo;
 import com.example.docconneting.common.response.PageResult;
+import com.example.docconneting.domain.alarm.service.AlarmService;
+import com.example.docconneting.domain.comment.dto.request.CommentRequest;
 import com.example.docconneting.domain.comment.dto.response.CommentListResponse;
+import com.example.docconneting.domain.comment.dto.response.CommentResponse;
 import com.example.docconneting.domain.comment.entity.Comment;
 import com.example.docconneting.domain.comment.repository.CommentRepository;
 import com.example.docconneting.domain.post.entity.Post;
@@ -16,7 +16,6 @@ import com.example.docconneting.domain.post.repository.PostRepository;
 import com.example.docconneting.domain.user.entity.User;
 import com.example.docconneting.domain.user.enums.UserRole;
 import com.example.docconneting.domain.user.repository.UserRepository;
-
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,7 +29,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CommentService {
 
-    private final AlarmSenderService alarmSenderService;
+    private final AlarmService alarmService;
     private final CommentRepository commentRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
@@ -53,7 +52,7 @@ public class CommentService {
         Comment saved = commentRepository.save(comment);
 
         // 게시물 작성자에게 알람 전송
-        alarmSenderService.sendCommentCompletedMessage(post.getPatient());
+        alarmService.sendCommentCompletedMessage(post.getPatient());
 
         CommentResponse response = CommentResponse.of(
                 comment.getId(),
