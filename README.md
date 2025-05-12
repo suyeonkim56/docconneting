@@ -21,11 +21,11 @@
 
 - GitHub Actions 기반의 CI/CD 파이프라인 구축으로 배포 자동화 실현 - Docker 기반 컨테이너화를 통해 환경 이식성 및 확장성 강화
 
-2️⃣ **알림 서버 분리 및 비동기 알림 처리**
-- 알람 서버 링크 (https://github.com/docconneting/docconneting-alarm-server-webflux)
-- Spring Cloud 기반으로 알림 서버를 분리하고, WebFlux를 적용하여 비동기 논블로킹 방식으로 알림 전송 처리
-- 주문, 결제, 쿠폰 등 다양한 이벤트 발생 시에도 서버 부하 없이 실시간 알림 발송 가능
-- 알람 서버에서 RabbitMQ를 이용해 이벤트 기반 메시지를 수신하고, FCM으로 푸시 알림을 전송하여 알람 전송 속도 향상
+2️⃣ **FCM을 적용한 비동기 알림 처리**
+
+- sendEachForMulticast메서드를 사용하여 100건 단위로 Batch 처리하여 안정적으로 대량의 알림을 전송
+- 알림 전송 시 @Async 비동기 처리를 적용해 서버 응답 지연 없이 알림 발송 수행
+- 알람 전송 히스토리의 경우 Bulk Insert 방식으로 대량 저장하여 성능 저하 없이 처리
 
 3️⃣ **웹소켓 기반의 STOMP를 활용한 1:1 채팅 구현**
 
@@ -58,10 +58,10 @@
 ## 3. 주요 기능
 
 
-📌 알람 전송 서버 분리 : Spring Cloud와 RabbitMQ 활용
+📌 알람 전송 : @Async와 Bulk Insert 활용
 
-- 주요 흐름 : 유료 게시물 등록 → 메인 서버에서 FCM 토큰 조회하여 DTO 생성 → 해당 DTO RabbitMQ에 전달 → 알람 서버는 RabbitMQ에 있는 DTO를 수신 → FCM 서버로 전송 요청
-- 대량의 알람 전송을 수행해도 서버를 분리하고 WebFlux 기반의 비동기 논블로킹을 적용했기 때문에, 메인 서버의 리소스를 효율적으로 사용 가능
+- 주요 흐름 : 유료 질문 게시물 등록 → 해당 게시물에 해당되는 전공의 리스트 조회 -> 전공의 id와 FCM 토큰을 가지고 메시지 생성 -> FCM 서버로 전송 -> 알람 전송 히스토리 Bulk Insert를 사용하여 저장 
+- 대량 알림 전송과 히스토리 저장을 비동기·일괄 처리함으로써 성능 저하 없이 빠르고 안정적인 알림 서비스를 구현
 
 📌 분산 환경에서의 채팅 처리 : RabbitMQ 활용
 
@@ -111,8 +111,8 @@
   <details>
     <summary>알람</summary>
     <p><img src="https://github.com/user-attachments/assets/41156ef9-b88b-4ab4-a02b-2f9175145349" width="580px"></p>
-    <p><img src="https://github.com/user-attachments/assets/cf4eb847-29e8-4ea8-8e2c-9870bd5cac9d"></p>
-    <p><img src="https://github.com/user-attachments/assets/cbf39ced-bd2b-4078-be3e-ebc0694a6af5"></p>
+    <p><img src="https://github.com/user-attachments/assets/a679bdec-7efb-4354-b382-1b5c5a7b3a3b"></p>
+    <p><img src="https://github.com/user-attachments/assets/57dc8a5e-c33f-4dd0-88ba-73388e49d599"></p>
   </details>
 
   <details>
@@ -157,7 +157,7 @@
 
 <h3>[알림 로직]</h3>
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/f02e794a-f461-475a-aa01-7cdda1f0cbb8" width="580px">
+  <img src="https://github.com/user-attachments/assets/718dc357-ede2-4b6d-9da3-c7f162cca1ff" width="580px">
 </p>
 
 <h3>[채팅 로직]</h3>
@@ -198,11 +198,10 @@
   <img src="https://img.shields.io/badge/JWT-000?style=for-the-badge&logo=jsonwebtokens&logoColor=white">
 </p>
 
-<h3 align="center">메시징 및 비동기 처리</h3>
+<h3 align="center">메시징</h3>
 
 <p align="center">
   <img src="https://img.shields.io/badge/RABBITMQ-FF6600?style=for-the-badge&logo=rabbitmq&logoColor=FFFFFF">
-  <img src="https://img.shields.io/badge/Spring Webflux-6DB33F?style=for-the-badge&logo=spring&logoColor=white">
   <img src="https://img.shields.io/badge/Websocket-5cffd1?style=for-the-badge&logo=&logoColor=white">
 </p>
 
@@ -258,35 +257,6 @@
 
 
 ## 10. 기술적 의사결정
-
-<details>
-    <summary>서버 분리 기술로 Spring Cloud를 선택한 이유</summary>
-
-### 도입배경
-
-- 서버는 알람 전송 이외에도 많은 작업을 수행하게 되는데 이런 상황이 지속되다 보면 알람이 전송되는 동안 다른 작업을 수행할 때 서버는 많은 부담을 가지게 된다고 판단
-- 그 결과, 기존 서버에서 알람 서버를 분리해야겠다고 결정
-
-### 선택지
-
-- Spring Cloud
-    - Spring Boot를 기반으로 한 마이크로서비스 아키텍쳐 구축을 간편하게 해줌
-    - Gateway 전용 서버가 필요하기 때문에 **추가 인프라 비용**이 **발생**
-    - Spring Boot가 아닌 다른 프레임워크는 적용할 수 없음
-- Kubernetes
-    - 다양한 언어와 프레임워크를 지원하기 때문에 **이기종 마이크로서비스** 운영 용이
-    - YAML, Helm 등등 적용하기 위해 공부할 부분들이 매우 많음
-    - 대규모 MSA에 적합
-- Zookeeper
-    - **고가용성 클러스터** 구성 가능
-    - 설정과 운영이 매우 복잡하고 Spring Boot와의 연동이 **매끄럽지 않음**
-
-### 최종결정
-
-- 현재 우리의 애플리케이션은 Spring Boot기반이기 때문에, Spring Boot와 호환이 가장 잘 되고 이를 기반으로 마이크로서비스를 간편하게 만들 수 있는 Spring Cloud가 가장 적절하다고 판단함
-- 또한, 다른 기술들에 비해서 비교적 러닝커브가 높지 않고, 개발자 친화적이면서 메인서버에서 알람서버만 분리하는 소규모 MSA를 진행하기에 적절한 기술이라고 생각함
-- 이러한 이유로 MSA 기술로 Spring Cloud 채택
-  </details>
 
 <details>
     <summary>알람 전송 기술로 FCM을 선택한 이유</summary>
@@ -668,38 +638,38 @@ RabbitMQ
 
 ## 11. [트러블 슈팅 & 최적화 전략]
 <details>
-  <summary>다건 알람(1만개) 전송 시간 개선</summary>
+   <summary>다건 알람(1만개) 전송 시간 개선</summary>
+  
+## 문제 상황
 
-<html>
-<body>
-<!--StartFragment--><h2>문제 상황 1 (1차 개선)</h2>
-<ul>
-<li>기존 MVC 기반으로 <code>sendEachForMulticast</code> 메서드를 사용하여 100개씩 Batch로 1만개의 알람을 전송했을 때, 2분 43초라는 매우 긴 시간이 걸림</li>
-<li>또한 알람이 전송되는 동안, 서버에서 다른 여러가지 요청에 대한 처리를 하는데 지장이 생김</li>
-</ul>
-<pre><code class="language-java">for (int i = 0; i &lt; fcmTokenList.size(); i += 100) {
+- 기존 MVC 기반으로 `sendEachForMulticast` 메서드를 사용하여 100개씩 Batch로 1만개의 알람을 전송했을 때, 2분 43초라는 매우 긴 시간이 걸림
+- 또한 알람이 전송되는 동안, 서버에서 다른 여러가지 요청에 대한 처리를 하는데 지장이 생김
+
+```java
+for (int i = 0; i < fcmTokenList.size(); i += 100) {
       fcmTokenBatches.add(fcmTokenList.subList(i, Math.min(fcmTokenList.size(), i + 100)));
 }
-for (List&lt;String&gt; fcmTokenBatche : fcmTokenBatches) {
+for (List<String> fcmTokenBatche : fcmTokenBatches) {
      /*
       * sendMulticastAlarm 메서드에 @Async 존재 x
       */
       alarmSenderService.sendMulticastAlarm(fcmTokenBatche, alarmMessage);
 }
 alarmHistoriesBulkRepository.batchUpdate(userIdList, alarmType, alarmMessage);
-</code></pre>
-<h2>해결방안</h2>
-<ul>
-<li><code>alarmSenderService.sendMulticastAlarm</code> 메서드에 @Async를 붙여서 메인스레드로부터 분리되어 별도의 스레드에서 동작하도록 비동기 처리</li>
-<li>Executor를 목적에 맞게 관리할 수 있고, 스레드의 수를 제한하여 OutOfMemoryError를 막기 위해서
-<code>AsyncConfig</code> 적용</li>
-</ul>
-<pre><code class="language-java">@Async(&quot;fcmExecutor&quot;)
-    public void sendMulticastAlarm(List&lt;String&gt; fcmTokenBatche, String content) {
+```
+
+## 해결방안
+
+- `alarmSenderService.sendMulticastAlarm` 메서드에 @Async를 붙여서 메인스레드로부터 분리되어 별도의 스레드에서 동작하도록 비동기 처리
+- Executor를 목적에 맞게 관리할 수 있고, 스레드의 수를 제한하여 OutOfMemoryError를 막기 위해서 `AsyncConfig` 적용
+
+```java
+@Async("fcmExecutor")
+    public void sendMulticastAlarm(List<String> fcmTokenBatche, String content) {
         try {
             MulticastMessage message = MulticastMessage.builder()
                     .setNotification(Notification.builder()
-                            .setTitle(&quot;Docconneting&quot;)
+                            .setTitle("Docconneting")
                             .setBody(content)
                             .build())
                     .addAllTokens(fcmTokenBatche)
@@ -710,377 +680,51 @@ alarmHistoriesBulkRepository.batchUpdate(userIdList, alarmType, alarmMessage);
             int successCount = response.getSuccessCount();
             int failureCount = response.getFailureCount();
 
-            log.info(&quot;알림 전송 완료 - 성공횟수: {}, 실패횟수: {}&quot;, successCount, failureCount);
+            log.info("알림 전송 완료 - 성공횟수: {}, 실패횟수: {}", successCount, failureCount);
         } catch (FirebaseMessagingException e) {
             throw new RuntimeException(e);
         }
-    }
-</code></pre>
-<h2>도입 전후 비교</h2>
-<ul>
-<li>시나리오 : 사용자가 유료 1만건의 의사들에게 알람이 전송됨</li>
-</ul>
-<p><strong>📌 도입 전 성능 테스트 결과</strong></p>
-
-![Image](https://github.com/user-attachments/assets/871db8bd-1eff-4b76-aaa4-4ab51f3014bf)
-
-처리 방식 | 실행 시간
--- | --
-MVC기반 @Async 미적용 | 2분 52초
-
-
-<html>
-<body>
-<!--StartFragment--><p><strong>도입 후 성능 테스트 결과</strong></p>
-<p>시작 시간</p>
-
-![Image](https://github.com/user-attachments/assets/005a50d7-4343-4851-a4ca-e082090fcde7)
-
-<p>종료 시간</p>
-
-![Image](https://github.com/user-attachments/assets/e228f874-849e-416c-b906-b7cb06ddc8f9)
-
-처리 방식 | 실행 시간
--- | --
-MVC기반 @Async 적용 | 1분 40초
-
-성능 개선 요약
-
-- **평균 응답 시간 :** 163초 → 97초로 약 **41.8%** 감소
-
-## 문제 상황 2 (2차 개선)
-
-- @Async를 붙여서 비동기 처리를 했지만 MVC 기반이므로 외부 API를 호출하는 알람 전송 메서드는 응답이 올 때까지 블로킹되어 있어 서버 리소스 사용 측면에서 여전히 효율적이지 못하고 속도가 느림
-
-## 해결방안
-
-- 알람 서버를 분리한 후, 메인서버에서 알람서버로 요청을 RabbitMQ를 적용해 전송하고 Spring WebFlux를 도입하여 비동기 논블로킹을 적용
-
-```java
-public Mono<BatchResponse> sendMulticastAlarm(List<String> fcmTokenBatche, String content) {
-        return Mono.fromCallable(() -> {
-                    MulticastMessage message = MulticastMessage.builder()
-                        .setNotification(Notification.builder()
-                                .setTitle("Docconneting")
-                                .setBody(content)
-                                .build())
-                        .addAllTokens(fcmTokenBatche)
-                        .build();
-                    return FirebaseMessaging.getInstance().sendEachForMulticast(message);
-                })
-                .subscribeOn(Schedulers.boundedElastic())
-                .doOnNext(batchResponse -> log.info("알림 전송 완료 - 성공횟수: {}, 실패횟수: {}"
-                        , batchResponse.getSuccessCount(), batchResponse.getFailureCount()))
-                .doOnError(error -> log.info("알림 전송 실패", error));
     }
 ```
 
 ## 도입 전후 비교
 
-- 시나리오 : 사용자가 유료 1만건의 의사들에게 알람이 전송됨
+- 시나리오 : 1만건의 알람을 `sendEachForMulticast` 메서드를 사용하여 100개씩 Batch 전송한다고 가정
 
-<html>
-<body>
-<!--StartFragment--><p><strong>📌 도입 전 성능 테스트 결과</strong></p>
+**📌 도입 전 성능 테스트 결과**
 
-처리 방식 | 평균 실행 시간(10회 측정)
--- | --
-MVC기반 @Async 적용 | 1분 37초
+![Image](https://github.com/user-attachments/assets/95c020d4-247f-4e2a-961b-1e4d4a0b3184)
 
-<html>
-<body>
-<!--StartFragment--><p><strong>📌 도입 후 성능 테스트 결과</strong></p>
-<p>1️⃣ 번째 시도 :  1분 10초</p>
+| 처리 방식 | 실행 시간 |
+| --- | --- |
+| MVC기반 @Async 미적용 | 2분 51초 |
 
-![Image](https://github.com/user-attachments/assets/84ac65a2-6afb-46e5-a069-daa42ed83cc3)
+**📌  도입 후 성능 테스트 결과**
 
-<p>2️⃣ 번째 시도 :  34.35초</p>
+시작 시간
 
-![Image](https://github.com/user-attachments/assets/5653a560-42b9-4aab-8417-789bd301420c)
+![Image](https://github.com/user-attachments/assets/3a89a162-353d-464f-85a2-0ed03f987453)
 
-<p>3️⃣ 번째 시도 : 1분 14초</p>
+종료 시간
 
-![Image](https://github.com/user-attachments/assets/0e4ed92e-cf55-4e2a-9632-571b801d7916)
+![Image](https://github.com/user-attachments/assets/541583cb-fd55-4d4a-b669-a62986d39a36)
 
-<p>4️⃣ 번째 시도 : 1분 26초</p>
-
-![Image](https://github.com/user-attachments/assets/17b48dc4-0f80-4b03-9900-0032b54f3e21)
-
-<p>5️⃣ 번째 시도 : 28초</p>
-
-![Image](https://github.com/user-attachments/assets/1c7b3112-7c61-4d72-830f-41dc536d1d23)
-
-<p>6️⃣ 번째 시도 : 1분 17초</p>
-
-![Image](https://github.com/user-attachments/assets/853ccfdc-51b8-41ea-9f95-bcbfae0b2578)
-
-<p>7️⃣ 번째 시도 : 39초</p>
-
-![Image](https://github.com/user-attachments/assets/79c4c86e-ebb1-47ac-b6e2-c757855a9c7a)
-
-<p>8️⃣ 번째 시도 : 1분 13초</p>
-
-![Image](https://github.com/user-attachments/assets/f616f168-69c5-4a9b-bbc1-f92441cd0306)
-
-<p>9️⃣ 번째 시도 : 54초</p>
-
-![Image](https://github.com/user-attachments/assets/192b7b75-c44e-44eb-a357-98b0026cf4c9)
-
-<p>🔟 번째 시도 : 29초</p>
-
-![Image](https://github.com/user-attachments/assets/18a846b2-1dee-49ed-bad6-12b258b2a181)
-
-<p>☑️ <strong>평균 : 50.87초</strong></p>
-
-처리 방식 | 평균 실행 시간(10회 측정)
--- | --
-WebFlux | 50.87초
+| 처리 방식 | 실행 시간 |
+| --- | --- |
+| MVC기반 @Async 적용 | 1분 40초 |
 
 **성능 개선 요약**
 
-```java
-/*
-     * 사용자가 유료 게시물을 올렸을 때 해당 전공에 해당되는 의사들에게 알람 전송
-     */
-    @Transactional
-    public void sendPostUploadCompletedMessage(Major major) throws FirebaseMessagingException {
-        List<User> users = userRepository.findByMajor(major);
-        List<String> fcmTokenList = users.stream().map(User::getFcmToken).toList();
-        for (String fcmToken : fcmTokenList) {
-            alarmSenderService.sendAlarm(fcmToken, "새로운 유료 질문이 올라왔습니다!");
-        }
-//        List<List<String>> fcmTokenBatches = new ArrayList<>();
-//        for (int i = 0; i < fcmTokenList.size(); i += 500) {
-//            fcmTokenBatches.add(fcmTokenList.subList(i, Math.min(fcmTokenList.size(), i + 500)));
-//        }
-//        for (List<String> fcmTokenBatche : fcmTokenBatches) {
-//            alarmSenderService.sendMulticastAlarm(fcmTokenBatche, "새로운 유료 질문이 올라왔습니다!");
-//        }
-        alarmHistoriesBulkRepository.batchUpdate(users, AlarmType.POST_UPLOAD, "새로운 유료 질문이 올라왔습니다!");
-    }
-```
+**📌 요약 그래프**
 
-```java
-/*
-     * 다건 알람 전송
-     */
-    @Async("fcmExecutor")
-    public void sendMulticastAlarm(List<String> fcmTokenBatche, String content) throws FirebaseMessagingException {
-        MulticastMessage message = MulticastMessage.builder()
-                .setNotification(Notification.builder()
-                        .setTitle("Docconneting")
-                        .setBody(content)
-                        .build())
-                .addAllTokens(fcmTokenBatche)
-                .build();
+<img src="https://github.com/user-attachments/assets/645d7697-33eb-45cb-8201-c24dbff16206" width="300" height="300">
 
-        BatchResponse response = FirebaseMessaging.getInstance().sendEachForMulticast(message);
-
-        int successCount = response.getSuccessCount();
-        int failureCount = response.getFailureCount();
-
-        log.info("알림 전송 완료 - 성공: {}, 실패: {}", successCount, failureCount);
-    }
-```
-
-```java
-@RestController
-@RequestMapping("/api/v1/notifications")
-@RequiredArgsConstructor
-public class AlarmController {
-
-    private final AlarmService alarmService;
-    private final UserRepository userRepository;
-
-    @GetMapping()
-    public ResponseEntity<Response<List<AlarmResponse>>> findAlarmHistories(@Auth AuthUser authUser, @PageableDefault Pageable pageable) {
-        PageResult<AlarmResponse> pageResult = alarmService.findAlarms(authUser, pageable);
-        return ResponseEntity.ok().body(Response.of(pageResult.getContent(), pageResult.getPageInfo()));
-    }
-
-    @PostMapping("/test1")
-    public void sendPostUploadAlarm1() {
-        alarmService.sendPostUploadCompletedMessage(Major.SURGERY);
-    }
-
-    @PostMapping("/test2")
-    public void sendPostUploadAlarm2() {
-        User user1 = userRepository.findById(4L).orElseThrow(() -> new RuntimeException("없네요"));
-        alarmService.sendCommentCompletedMessage(user1);
-    }
-
-    @PostMapping("/test3")
-    public void sendPostUploadAlarm3() {
-        User user1 = userRepository.findById(4L).orElseThrow(() -> new RuntimeException("없네요"));
-        User user2 = userRepository.findById(1001L).orElseThrow(() -> new RuntimeException("없네요"));
-        alarmService.sendMedicalRequestMessage(user1, user2);
-    }
-
-}
-```
-
----
-
-웹플럭스용
-
-<html>
-<body>
-<!--StartFragment--><pre><code class="language-java">@RestController
-@RequiredArgsConstructor
-public class AlarmController {
-
-    private final AlarmHistoriesRepository alarmHistoriesRepository;
-    private final AlarmSenderService alarmSenderService;
-    private final AlarmService alarmService;
-
-    @GetMapping(&quot;/test&quot;)
-    public Mono&lt;Void&gt; save() {
-        List&lt;FcmInfo&gt; fcmInfoList = new ArrayList&lt;&gt;();
-        String token1 = &quot;f1aDjd8xuyNrNbM8QJyM3O:APA91bH9JO7sx3uCQoYNzzVWM87wu5sELEZZh5m0YkZOcHKoNFJvUZdeQM7rmYnjj_T_u4puPdqYWA8968q_F5KxC1uHPTiYGN_oRlfzt0Ghwk_sKK0-HAk&quot;;
-        Long user1 = 2L;
-        String token2 = &quot;cfQBQuVNEsjlesu5tHk2rI:APA91bEiBtLa_c064vr9donu7yqQO2KdFNPhfubMieQiq6j3gt6S4ztmpQi1Ii3Fj4XpVwtkmiPIEWf5CejxtmcqeKkpIC2Id2qj1bgSLHjsN40I6tQZ520&quot;;
-        Long user2 = 4L;
-        for (int i = 0; i &lt; 10000; i++) {
-            if (i % 2 == 0) {
-                fcmInfoList.add(FcmInfo.of(token1, user1));
-            } else {
-                fcmInfoList.add(FcmInfo.of(token2, user2));
-            }
-        }
-
-        String message = &quot;새로운 게시물이 올라왔습니다&quot;;
-        Message messageDto = Message.of(fcmInfoList, message, AlarmType.COMMENT);
-        return alarmService.sendPostUploadCompletedMessage(messageDto);
-    }
-}
-
-</code></pre>
-<p>🕒 시작 시간: 2025-05-03T16:17:31.915137</p>
-
-![Image](https://github.com/user-attachments/assets/30b82d52-9c9b-4798-816b-4334f8275f02)
-
-![Image](https://github.com/user-attachments/assets/eb936199-232e-43dd-9844-ea9208fc84e2)
-
-<p>2025-05-03T16:19:12.533+09:00</p>
-
-![Image](https://github.com/user-attachments/assets/5601a43b-3e07-48b1-805b-7e1ecf88fba7)
-
-<p>📌 1만건의 알람을 <code>sendEachForMulticast</code> 메서드를 사용하여 100개씩 Batch 전송한다고 가정했을 때, 전송 성능 개선</p>
-<ul>
-<li>
-<p><strong>📋  MVC기반 @Async 미적용</strong></p>
-
-![Image](https://github.com/user-attachments/assets/ce072d26-690e-4b2e-981c-de32599b3dae)
-
-</li>
-<li>
-<p><strong>📋  MVC기반 @Async 적용</strong></p>
-<p>시작 시간</p>
-
-![Image](https://github.com/user-attachments/assets/e93d3723-6c98-4099-9ab2-581d6775e075)
-
-<p>종료 시간</p>
-
-![Image](https://github.com/user-attachments/assets/9cb21ee6-2f6f-4139-aa9f-c0698cf0d26a)
-
-</li>
-<li>
-<p><strong>📋 WebFlux 10회 테스트 진행 기록</strong></p>
-<p>1️⃣ 번째 시도 :  1분 10초</p>
-
-![Image](https://github.com/user-attachments/assets/cabd303b-52a3-4dee-a803-8ba2cc64045e)
-
-<p>2️⃣ 번째 시도 :  34.35초</p>
-
-![Image](https://github.com/user-attachments/assets/b92effe0-4e3b-4198-9984-0948e3560851)
-
-<p>3️⃣ 번째 시도 : 1분 14초</p>
-
-![Image](https://github.com/user-attachments/assets/d366769e-8783-4ee4-ab7c-a191719f0be0)
-
-<p>4️⃣ 번째 시도 : 1분 26초</p>
-
-![Image](https://github.com/user-attachments/assets/6080de0b-b6eb-4a00-8fd3-8a73e89d2ded)
-
-<p>5️⃣ 번째 시도 : 28초</p>
-
-![Image](https://github.com/user-attachments/assets/0a41bf6a-6e6f-477a-bac1-58847244d944)
-
-<p>6️⃣ 번째 시도 : 1분 17초</p>
-
-![Image](https://github.com/user-attachments/assets/4397ec1c-cbe8-4446-823b-0c08c9f79979)
-
-<p>7️⃣ 번째 시도 : 39초</p>
-
-![Image](https://github.com/user-attachments/assets/b5130cc2-a753-44d4-a082-5799905933c3)
-
-<p>8️⃣ 번째 시도 : 1분 13초</p>
-
-![Image](https://github.com/user-attachments/assets/220aaa1c-1624-4e19-a0c1-b9504361c37a)
-
-<p>9️⃣ 번째 시도 : 54초</p>
-
-![Image](https://github.com/user-attachments/assets/f5df4d2a-3e74-4c04-9673-6074255729bb)
-
-<p>🔟 번째 시도 : 29초</p>
-
-![Image](https://github.com/user-attachments/assets/c12802ea-3569-4284-8c9a-d78fd9a14f5a)
-
-<p>☑️ <strong>평균 : 56.44초</strong></p>
-</li>
-</ul>
-
-처리 방식 | 실행 시간 (WebFlux는 10회 평균)
--- | --
-MVC기반 @Async 미적용 | 2분 52초
-MVC기반 @Async 적용 | 1분 40초
-WebFlux | 56.44초
-
-
-<ul>
-<li>기존 동기 방식(MVC 기반)에서 <code>@Async</code>를 적용하여 <strong>172초 → 100초로 약 41.8% 성능 개선</strong></li>
-<li><strong>WebFlux 기반으로 전환하여</strong>,
-<ul>
-<li>기존 동기 방식 대비 <strong>약 67.2% 성능 향상</strong> (172초 → 56.44초)</li>
-<li><code>@Async</code> 적용 방식 대비 <strong>약 43.6% 성능 향상</strong> (100초 → 56.44초)</li>
-</ul>
-</li>
-</ul>
-
-![Image](https://github.com/user-attachments/assets/da3365b6-4c46-4ab3-8c89-53b763773764)
-
-<ul>
-<li>기존 동기 방식(MVC 기반)에서 <code>@Async</code>를 적용하여 <strong>172초 → 100초로 약 41.8% 성능 개선</strong></li>
-<li><strong>WebFlux 기반으로 전환하여</strong>,
-<ul>
-<li>기존 동기 방식 대비 <strong>약 67.2% 성능 향상</strong> (172초 → 56.44초)</li>
-<li><code>@Async</code> 적용 방식 대비 <strong>약 43.6% 성능 향상</strong> (100초 → 56.44초)</li>
-</ul>
-</li>
-</ul>
-<!-- notionvc: 7cc933bd-6ea8-4e35-9327-87ad81a47121 --><!--EndFragment-->
-</body>
-</html>
-
+| 처리 방식 | 실행 시간  |
+| --- | --- |
+| MVC기반 @Async 미적용 | 2분 52초 |
+| MVC기반 @Async 적용 | 1분 40초 |
+- **평균 응답 시간 :** 171초 → 100초로 약 **41.5%** 감소
 </details>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 <details>
   <summary>분산 환경에서 메시지 전달에서의 문제 해결</summary>
@@ -1585,7 +1229,7 @@ Order order = Order.ofChatOrder(patient, OrderProduct.CHAT_3000, doctor.getId(),
 
 | 역할    | 이름   | 주요 담당 업무 |
 |--------|--------|----------------|
-| 팀장    | 김예나 | 알람, 비동기, 서버분리 |
+| 팀장    | 김예나 | 알람 |
 | 부팀장 | 김민재 | 채팅 |
 | 팀원 | 김수연 | 인증인가, CI/CD |
 | 팀원    | 반효승 | 쿠폰, 동시성 제어, 비동기 |
